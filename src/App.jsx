@@ -1,297 +1,259 @@
 import React, { useState } from 'react';
-import { Shield, Activity, Settings, AlertTriangle, Cloud, Zap, Menu, X, BarChart } from 'lucide-react';
+import { Shield, LayoutDashboard, Database, Settings, ArrowRight, Menu, X, Bell, User, Cpu, BarChart3 } from 'lucide-react';
 
-// --- Data Structure Placeholder ---
-const dashboardData = {
-  totalThreats: 1450,
-  blockedAttacks: 1289,
-  highRiskAlerts: 15,
-  networkStatus: 'Optimized',
-  recentThreats: [
-    { id: 1, type: 'Malware', source: '192.168.1.101', severity: 'High', time: '5m ago' },
-    { id: 2, type: 'DDoS Attempt', source: '203.0.113.5', severity: 'Critical', time: '12m ago' },
-    { id: 3, type: 'Phishing Email', source: 'User X', severity: 'Medium', time: '30m ago' },
-  ],
-};
+// --- Utility Components ---
 
-// --- Custom Components ---
-
-const MetricCard = ({ title, value, icon: Icon, colorClass }) => (
-  <div className="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700 transition duration-300 hover:shadow-xl hover:border-indigo-500/50">
+/**
+ * A reusable card component for data display.
+ */
+const StatCard = ({ title, value, icon: Icon, color }) => (
+  <div className={`p-5 bg-gray-800 rounded-xl shadow-lg border-b-4 border-${color}-500 transition-transform hover:scale-[1.02] cursor-pointer`}>
     <div className="flex items-center justify-between">
-      <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">{title}</h3>
-      <Icon className={`w-6 h-6 ${colorClass}`} />
+      <div className={`p-3 rounded-full bg-gray-900 text-${color}-400`}>
+        <Icon size={24} />
+      </div>
+      <span className="text-sm font-semibold text-gray-400">{title}</span>
     </div>
-    <p className="mt-2 text-4xl font-extrabold text-white">
-      {value}
-    </p>
+    <div className="mt-3">
+      <p className="text-3xl font-bold text-white">{value}</p>
+    </div>
   </div>
 );
 
-const ThreatItem = ({ threat }) => {
-  const severityColors = {
-    Critical: 'text-red-500 bg-red-900/30 border-red-500',
-    High: 'text-orange-500 bg-orange-900/30 border-orange-500',
-    Medium: 'text-yellow-500 bg-yellow-900/30 border-yellow-500',
-  };
-  const colorClass = severityColors[threat.severity] || 'text-gray-400 bg-gray-600/30 border-gray-500';
+/**
+ * Sidebar Navigation Link
+ */
+const NavLink = ({ icon: Icon, text, isActive, onClick }) => (
+  <button
+    className={`flex items-center w-full p-3 rounded-lg transition-colors duration-200 ${
+      isActive
+        ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
+        : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+    }`}
+    onClick={onClick}
+  >
+    <Icon size={20} className="mr-3" />
+    <span className="font-medium">{text}</span>
+  </button>
+);
 
-  return (
-    <div className="flex items-center justify-between p-3 border-b border-gray-700 last:border-b-0">
-      <div className="flex-1">
-        <p className="font-semibold text-white">{threat.type}</p>
-        <p className="text-xs text-gray-500">Source: {threat.source}</p>
-      </div>
-      <span className={`px-2 py-0.5 text-xs font-medium rounded-full border ${colorClass}`}>
-        {threat.severity}
-      </span>
-      <span className="ml-4 text-sm text-gray-500">{threat.time}</span>
-    </div>
-  );
-};
+// --- Main Dashboard Content ---
 
-const Sidebar = ({ currentPage, setPage, isMobileMenuOpen, setIsMobileMenuOpen }) => {
-  const navItems = [
-    { id: 'overview', label: 'Overview', icon: BarChart },
-    { id: 'threats', label: 'Threats Log', icon: AlertTriangle },
-    { id: 'settings', label: 'Settings', icon: Settings },
-  ];
+const DashboardContent = () => (
+  <div className="p-4 sm:p-6 lg:p-8 space-y-8">
+    <h1 className="text-3xl font-extrabold text-white border-b border-gray-700 pb-3">
+      CyberShield: Real-Time Overview
+    </h1>
 
-  const NavLink = ({ id, label, icon: Icon }) => {
-    const isActive = currentPage === id;
-    const activeClass = isActive ? 'bg-indigo-700 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-700 hover:text-white';
-    return (
-      <a
-        href="#"
-        onClick={() => {
-          setPage(id);
-          setIsMobileMenuOpen(false); // Close menu on selection
-        }}
-        className={`flex items-center p-3 rounded-xl transition duration-200 ${activeClass}`}
-      >
-        <Icon className="w-5 h-5 mr-3" />
-        <span className="font-medium">{label}</span>
-      </a>
-    );
-  };
-
-  return (
-    <>
-      {/* Desktop Sidebar */}
-      <div className="hidden lg:flex flex-col w-64 bg-gray-900 border-r border-gray-700 p-4">
-        <div className="flex items-center mb-10 p-2">
-          <Shield className="w-8 h-8 text-indigo-400 mr-3" />
-          <h1 className="text-2xl font-bold text-white tracking-wide">CyberShield</h1>
-        </div>
-        <nav className="space-y-2">
-          {navItems.map(item => (
-            <NavLink key={item.id} {...item} />
-          ))}
-        </nav>
-      </div>
-
-      {/* Mobile Menu Button */}
-      <div className="lg:hidden p-4 bg-gray-900 border-b border-gray-700 flex justify-between items-center">
-        <div className="flex items-center">
-            <Shield className="w-6 h-6 text-indigo-400 mr-2" />
-            <h1 className="text-xl font-bold text-white">CyberShield</h1>
-        </div>
-        <button
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="p-2 rounded-full text-white bg-gray-700 hover:bg-gray-600 transition"
-          aria-label="Toggle menu"
-        >
-          {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-        </button>
-      </div>
-
-      {/* Mobile Menu Overlay */}
-      {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden bg-gray-900/95 p-6 backdrop-blur-sm">
-          <div className="flex justify-end mb-8">
-            <button
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="p-2 rounded-full text-white bg-gray-700 hover:bg-gray-600 transition"
-              aria-label="Close menu"
-            >
-              <X className="w-6 h-6" />
-            </button>
-          </div>
-          <nav className="space-y-4">
-            {navItems.map(item => (
-              <NavLink key={item.id} {...item} />
-            ))}
-          </nav>
-        </div>
-      )}
-    </>
-  );
-};
-
-// --- Page Views ---
-
-const OverviewPage = () => (
-  <div className="p-4 sm:p-8">
-    <h2 className="text-3xl font-extrabold text-white mb-6">Dashboard Overview</h2>
-
-    {/* Metrics Grid */}
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      <MetricCard
-        title="Total Threats Detected"
-        value={dashboardData.totalThreats.toLocaleString()}
-        icon={Activity}
-        colorClass="text-yellow-400"
-      />
-      <MetricCard
-        title="Attacks Blocked"
-        value={dashboardData.blockedAttacks.toLocaleString()}
+    {/* Stat Cards Section */}
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <StatCard
+        title="Active Threats"
+        value="12"
         icon={Shield}
-        colorClass="text-green-400"
+        color="red"
       />
-      <MetricCard
-        title="High Risk Alerts"
-        value={dashboardData.highRiskAlerts}
-        icon={AlertTriangle}
-        colorClass="text-red-500"
+      <StatCard
+        title="Data Volume (TB)"
+        value="5.4"
+        icon={Database}
+        color="indigo"
       />
-      <MetricCard
-        title="Network Status"
-        value={dashboardData.networkStatus}
-        icon={Cloud}
-        colorClass="text-indigo-400"
+      <StatCard
+        title="System Uptime (%)"
+        value="99.98"
+        icon={Cpu}
+        color="green"
+      />
+      <StatCard
+        title="Incidents Resolved"
+        value="452"
+        icon={BarChart3}
+        color="yellow"
       />
     </div>
 
-    {/* Recent Activity and Graphs */}
+    {/* Recent Activity and System Health */}
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-      {/* Recent Threats Log */}
-      <div className="lg:col-span-2 bg-gray-800 p-6 rounded-xl shadow-xl border border-gray-700">
-        <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
-            <AlertTriangle className="w-5 h-5 mr-2 text-red-500" />
-            Recent Threat Activity
-        </h3>
-        <div className="divide-y divide-gray-700 max-h-96 overflow-y-auto">
-          {dashboardData.recentThreats.map(threat => (
-            <ThreatItem key={threat.id} threat={threat} />
+      {/* Recent Activity Card */}
+      <div className="lg:col-span-2 bg-gray-800 p-6 rounded-xl shadow-2xl space-y-4">
+        <h2 className="text-xl font-semibold text-white border-b border-gray-700 pb-2">Recent Security Events</h2>
+        <ul className="divide-y divide-gray-700">
+          {[
+            { time: '1 min ago', event: 'Anomaly detected in user authentication logs.', type: 'Warning' },
+            { time: '5 min ago', event: 'New vulnerability scan initiated by Admin.', type: 'Info' },
+            { time: '15 min ago', event: 'DDoS protection threshold breach attempt.', type: 'Critical' },
+            { time: '30 min ago', event: 'Database backup successfully completed.', type: 'Success' },
+          ].map((item, index) => (
+            <li key={index} className="flex justify-between items-center py-3">
+              <div className="flex flex-col">
+                <p className="text-white font-medium">{item.event}</p>
+                <p className="text-xs text-gray-500 mt-1">{item.time}</p>
+              </div>
+              <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
+                item.type === 'Critical' ? 'bg-red-900 text-red-300' :
+                item.type === 'Warning' ? 'bg-yellow-900 text-yellow-300' :
+                item.type === 'Info' ? 'bg-indigo-900 text-indigo-300' :
+                'bg-green-900 text-green-300'
+              }`}>
+                {item.type}
+              </span>
+            </li>
           ))}
-           <div className="p-3 text-center text-gray-500">
-              (More entries would be loaded here...)
-           </div>
+        </ul>
+        <div className="pt-3 border-t border-gray-700">
+          <button className="flex items-center text-blue-400 hover:text-blue-300 transition-colors duration-150 text-sm">
+            View All Logs <ArrowRight size={16} className="ml-1" />
+          </button>
         </div>
       </div>
 
-      {/* System Health Status */}
-      <div className="bg-gray-800 p-6 rounded-xl shadow-xl border border-gray-700 flex flex-col justify-between">
-        <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
-            <Zap className="w-5 h-5 mr-2 text-indigo-400" />
-            System Health
-        </h3>
-        <div className="space-y-4 text-gray-300">
-            <div className="flex justify-between items-center border-b border-gray-700 pb-2">
-                <span>CPU Usage:</span>
-                <span className="text-green-400 font-medium">18%</span>
-            </div>
-            <div className="flex justify-between items-center border-b border-gray-700 pb-2">
-                <span>Memory Load:</span>
-                <span className="text-yellow-400 font-medium">45%</span>
-            </div>
-            <div className="flex justify-between items-center">
-                <span>Disk I/O:</span>
-                <span className="text-green-400 font-medium">2 MB/s</span>
-            </div>
+      {/* Quick Status Summary Card */}
+      <div className="bg-gray-800 p-6 rounded-xl shadow-2xl space-y-4">
+        <h2 className="text-xl font-semibold text-white border-b border-gray-700 pb-2">System Health Status</h2>
+        <div className="space-y-4">
+          <HealthItem label="Network Latency" status="Good (12ms)" color="green" />
+          <HealthItem label="Firewall Config" status="Up to Date" color="green" />
+          <HealthItem label="Pending Updates" status="5 Critical" color="red" />
+          <HealthItem label="Storage Capacity" status="85% Used" color="yellow" />
         </div>
-        <button className="mt-6 w-full py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition duration-200 shadow-md">
-            Run Full System Scan
-        </button>
+        <div className="pt-4">
+          <button className="w-full bg-indigo-600 text-white py-2 rounded-lg font-semibold hover:bg-indigo-700 transition-colors">
+            Run Diagnostics
+          </button>
+        </div>
       </div>
     </div>
   </div>
 );
 
-const ThreatsLogPage = () => (
-    <div className="p-4 sm:p-8">
-        <h2 className="text-3xl font-extrabold text-white mb-6">Full Threats Log</h2>
-        <div className="bg-gray-800 p-6 rounded-xl shadow-xl border border-gray-700">
-            <p className="text-gray-400">This page would typically feature a table with filtering and sorting capabilities for all historical threat data.</p>
-            <div className="mt-4 p-4 bg-gray-900 rounded-lg text-gray-500">
-                [Placeholder for Data Table Component]
-                <div className="h-64 flex items-center justify-center">
-                    <AlertTriangle className="w-10 h-10 text-red-500 mr-2" />
-                    Detailed Log View Coming Soon...
-                </div>
-            </div>
-        </div>
-    </div>
-);
-
-const SettingsPage = () => (
-    <div className="p-4 sm:p-8">
-        <h2 className="text-3xl font-extrabold text-white mb-6">Security Settings</h2>
-        <div className="bg-gray-800 p-6 rounded-xl shadow-xl border border-gray-700 max-w-2xl">
-            <p className="text-gray-300 mb-4">Manage your firewall rules and security policies here.</p>
-            <div className="space-y-4">
-                <div className="flex justify-between items-center p-3 bg-gray-700/50 rounded-lg">
-                    <span className="text-white">Firewall Active</span>
-                    <input type="checkbox" className="h-5 w-5 rounded form-checkbox text-indigo-600 bg-gray-600 border-gray-500 focus:ring-indigo-500" defaultChecked />
-                </div>
-                <div className="flex justify-between items-center p-3 bg-gray-700/50 rounded-lg">
-                    <span className="text-white">Automatic Updates</span>
-                    <input type="checkbox" className="h-5 w-5 rounded form-checkbox text-indigo-600 bg-gray-600 border-gray-500 focus:ring-indigo-500" />
-                </div>
-                <button className="mt-4 px-6 py-2 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 transition duration-200">
-                    Apply Changes
-                </button>
-            </div>
-        </div>
-    </div>
+const HealthItem = ({ label, status, color }) => (
+  <div className="flex justify-between items-center">
+    <span className="text-gray-300">{label}</span>
+    <span className={`text-${color}-400 font-semibold flex items-center`}>
+      <span className={`w-2 h-2 rounded-full mr-2 bg-${color}-500`}></span>
+      {status}
+    </span>
+  </div>
 );
 
 
 // --- Main App Component ---
-export default function App() {
-  const [currentPage, setCurrentPage] = useState('overview');
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const renderPage = () => {
-    switch (currentPage) {
-      case 'overview':
-        return <OverviewPage />;
-      case 'threats':
-        return <ThreatsLogPage />;
-      case 'settings':
-        return <SettingsPage />;
-      default:
-        return <OverviewPage />;
-    }
-  };
+const App = () => {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('Dashboard');
+
+  const navItems = [
+    { name: 'Dashboard', icon: LayoutDashboard },
+    { name: 'Threats', icon: Shield },
+    { name: 'Data Management', icon: Database },
+    { name: 'Configuration', icon: Settings },
+  ];
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row bg-gray-900 font-inter">
+    <div className="min-h-screen bg-gray-900 font-sans antialiased text-white">
+      {/* Mobile Sidebar Overlay */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black opacity-50 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        ></div>
+      )}
 
-      {/* Sidebar Navigation (Conditional Rendering for Mobile) */}
-      <Sidebar
-        currentPage={currentPage}
-        setPage={setCurrentPage}
-        isMobileMenuOpen={isMobileMenuOpen}
-        setIsMobileMenuOpen={setIsMobileMenuOpen}
-      />
+      {/* Main Layout Container */}
+      <div className="flex">
+        {/* Sidebar */}
+        <aside
+          className={`fixed top-0 left-0 w-64 h-full bg-gray-800 shadow-xl z-40 p-5 transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+            isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
+        >
+          {/* Logo and Close Button */}
+          <div className="flex justify-between items-center pb-6 mb-6 border-b border-gray-700">
+            <h1 className="text-2xl font-black text-blue-500 flex items-center">
+              <Shield size={24} className="mr-2" />
+              CyberShield
+            </h1>
+            <button
+              className="text-gray-400 hover:text-white lg:hidden"
+              onClick={() => setIsSidebarOpen(false)}
+            >
+              <X size={24} />
+            </button>
+          </div>
 
-      {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto w-full">
-        {renderPage()}
-      </main>
+          {/* Navigation Links */}
+          <nav className="space-y-2">
+            {navItems.map((item) => (
+              <NavLink
+                key={item.name}
+                text={item.name}
+                icon={item.icon}
+                isActive={activeTab === item.name}
+                onClick={() => {
+                  setActiveTab(item.name);
+                  setIsSidebarOpen(false); // Close sidebar on mobile after click
+                }}
+              />
+            ))}
+          </nav>
 
-      {/* Tailwind and Inter Font loading script (for reference, assumes external load in actual environment) */}
-      <script src="https://cdn.tailwindcss.com"></script>
-      <style>
-        {`
-          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
-          .font-inter { font-family: 'Inter', sans-serif; }
-          /* Fix for default checkbox styling in React */
-          input[type="checkbox"] { appearance: none; -webkit-appearance: none; border-width: 1px; border-style: solid; }
-        `}
-      </style>
+          {/* User Profile Footer */}
+          <div className="absolute bottom-0 left-0 w-full p-5 border-t border-gray-700">
+            <div className="flex items-center p-3 bg-gray-700 rounded-xl">
+              <User size={24} className="text-blue-400 mr-3" />
+              <div>
+                <p className="text-sm font-semibold text-white">Admin User</p>
+                <p className="text-xs text-gray-400">Security Officer</p>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        {/* Main Content Area */}
+        <main className="flex-1 lg:ml-64 transition-all duration-300 ease-in-out">
+          {/* Header/Navbar */}
+          <header className="sticky top-0 z-20 bg-gray-800/90 backdrop-blur-sm shadow-md p-4 flex justify-between items-center border-b border-gray-700">
+            {/* Mobile Menu Button */}
+            <button
+              className="text-gray-400 hover:text-white lg:hidden"
+              onClick={() => setIsSidebarOpen(true)}
+            >
+              <Menu size={24} />
+            </button>
+
+            {/* Current Page Title (Desktop/Tablet) */}
+            <h2 className="hidden sm:block text-xl font-bold text-white ml-2">{activeTab}</h2>
+
+            {/* Search, Notifications, and User */}
+            <div className="flex items-center space-x-4 ml-auto">
+              <input
+                type="text"
+                placeholder="Search resources..."
+                className="hidden md:block p-2 rounded-lg bg-gray-700 text-gray-300 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button className="p-2 text-gray-400 hover:text-white bg-gray-700 rounded-full transition-colors">
+                <Bell size={20} />
+              </button>
+              <div className="p-2 text-blue-400 bg-gray-700 rounded-full">
+                <User size={20} />
+              </div>
+            </div>
+          </header>
+
+          {/* Page Content based on activeTab */}
+          {/* We only render the Dashboard content for now */}
+          <DashboardContent />
+
+          {/* Simple Footer for aesthetics */}
+          <footer className="p-4 text-center text-xs text-gray-500 border-t border-gray-800 mt-8">
+             &copy; 2024 CyberShield Security Platform. All rights reserved.
+          </footer>
+        </main>
+      </div>
     </div>
   );
-}
+};
+
+export default App;
