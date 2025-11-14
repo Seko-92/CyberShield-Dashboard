@@ -1,498 +1,297 @@
-import React, { useState, useCallback } from 'react';
-import {
-  Link, FileText, Search, Mail, Loader2, Zap, AlertTriangle, CheckCircle, XCircle
-} from 'lucide-react';
+import React, { useState } from 'react';
+import { Shield, Activity, Settings, AlertTriangle, Cloud, Zap, Menu, X, BarChart } from 'lucide-react';
 
-// --- CONFIGURATION ---
-// IMPORTANT: Update this BASE_URL to match where your FastAPI backend is running
-const BASE_URL = 'http://127.0.0.1:8000';
-// --- CONFIGURATION ---
+// --- Data Structure Placeholder ---
+const dashboardData = {
+  totalThreats: 1450,
+  blockedAttacks: 1289,
+  highRiskAlerts: 15,
+  networkStatus: 'Optimized',
+  recentThreats: [
+    { id: 1, type: 'Malware', source: '192.168.1.101', severity: 'High', time: '5m ago' },
+    { id: 2, type: 'DDoS Attempt', source: '203.0.113.5', severity: 'Critical', time: '12m ago' },
+    { id: 3, type: 'Phishing Email', source: 'User X', severity: 'Medium', time: '30m ago' },
+  ],
+};
 
-// --- UTILITY COMPONENTS ---
+// --- Custom Components ---
 
-// Loading Spinner Component
-const LoadingSpinner = ({ message = "Processing request..." }) => (
-  <div className="flex items-center justify-center p-4 text-indigo-600">
-    <Loader2 className="w-6 h-6 animate-spin mr-3" />
-    <span className="font-medium">{message}</span>
+const MetricCard = ({ title, value, icon: Icon, colorClass }) => (
+  <div className="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700 transition duration-300 hover:shadow-xl hover:border-indigo-500/50">
+    <div className="flex items-center justify-between">
+      <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">{title}</h3>
+      <Icon className={`w-6 h-6 ${colorClass}`} />
+    </div>
+    <p className="mt-2 text-4xl font-extrabold text-white">
+      {value}
+    </p>
   </div>
 );
 
-// Result Card Component
-const ResultCard = ({ title, status, details, Icon, colorClass, summary, children }) => {
-  const [isOpen, setIsOpen] = useState(false);
-
-  // Determine indicator color based on status
-  let indicatorColor = 'bg-gray-400';
-  if (status === 'DANGER' || status === 'error') {
-    indicatorColor = 'bg-red-500';
-  } else if (status === 'WARNING' || status === 'PENDING') {
-    indicatorColor = 'bg-yellow-500';
-  } else if (status === 'CLEAN' || status === 'completed' || status === 'success') {
-    indicatorColor = 'bg-green-500';
-  }
-
-  // Clean up JSON for display
-  const cleanDetails = JSON.stringify(details, (key, value) => {
-    if (value === null || value === undefined) {
-      return "(N/A)";
-    }
-    return value;
-  }, 2);
-
-  return (
-    <div className="bg-white rounded-xl shadow-lg border border-gray-100 mb-6 transition duration-300 hover:shadow-xl">
-      <div className="p-5">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center space-x-3">
-            <div className={`p-3 rounded-full ${colorClass} text-white`}>
-              <Icon className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-xl font-semibold text-gray-900">{title}</h3>
-              <p className="text-sm text-gray-500 mt-1">{summary}</p>
-            </div>
-          </div>
-          <div className={`mt-1 px-3 py-1 text-xs font-bold rounded-full text-white ${indicatorColor}`}>
-            {status}
-          </div>
-        </div>
-
-        {/* Child content, used primarily for Breach List */}
-        {children}
-
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="mt-4 text-sm text-indigo-600 hover:text-indigo-800 font-medium transition duration-150"
-        >
-          {isOpen ? 'Hide Detailed JSON' : 'Show Detailed JSON'}
-        </button>
-
-        {isOpen && (
-          <pre className="mt-3 p-4 bg-gray-50 rounded-lg text-xs overflow-x-auto border border-gray-200">
-            {cleanDetails}
-          </pre>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// Error Message Component
-const ErrorMessage = ({ message }) => (
-  <div className="p-4 bg-red-50 border border-red-300 text-red-700 rounded-xl flex items-center space-x-2">
-    <XCircle className="w-5 h-5 flex-shrink-0" />
-    <span className="font-medium">Error: {message}</span>
-  </div>
-);
-
-
-// --- TAB CONTENT COMPONENTS ---
-
-const UrlScanner = () => {
-  const [url, setUrl] = useState('');
-  const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  const handleScan = useCallback(async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setResult(null);
-    setError(null);
-
-    try {
-      const response = await fetch(`${BASE_URL}/scan`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      setResult(data);
-    } catch (e) {
-      setError(`Failed to connect to backend: ${e.message}. Ensure the FastAPI server is running at ${BASE_URL}.`);
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  }, [url]);
-
-  return (
-    <div className="space-y-6">
-      <form onSubmit={handleScan} className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
-        <input
-          type="url"
-          placeholder="Enter URL (e.g., https://malware.testing.com)"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          required
-          className="flex-grow p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150"
-        />
-        <button
-          type="submit"
-          disabled={loading || !url.trim()}
-          className="flex-shrink-0 flex items-center justify-center space-x-2 px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition duration-150 disabled:opacity-50"
-        >
-          <Link className="w-5 h-5" />
-          <span>Scan URL</span>
-        </button>
-      </form>
-
-      {loading && <LoadingSpinner message="Scanning URL and analyzing multiple sources..." />}
-      {error && <ErrorMessage message={error} />}
-      {result && (
-        <ResultCard
-          title="URL Scan Results"
-          summary={result.overall_summary}
-          status={result.overall_summary.split(':')[0]} // Extract DANGER/CLEAN/WARNING
-          details={result.details}
-          Icon={Link}
-          colorClass="bg-indigo-600"
-        />
-      )}
-    </div>
-  );
-};
-
-const FileScanner = () => {
-  const [file, setFile] = useState(null);
-  const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  const handleFileChange = (e) => {
-    setFile(e.target.files[0] || null);
+const ThreatItem = ({ threat }) => {
+  const severityColors = {
+    Critical: 'text-red-500 bg-red-900/30 border-red-500',
+    High: 'text-orange-500 bg-orange-900/30 border-orange-500',
+    Medium: 'text-yellow-500 bg-yellow-900/30 border-yellow-500',
   };
-
-  const handleScan = useCallback(async (e) => {
-    e.preventDefault();
-    if (!file) return;
-
-    setLoading(true);
-    setResult(null);
-    setError(null);
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      const response = await fetch(`${BASE_URL}/scan-file`, {
-        method: 'POST',
-        body: formData, // Fetch automatically sets Content-Type for FormData
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      setResult(data);
-    } catch (e) {
-      setError(`Failed to connect to backend: ${e.message}. Ensure the FastAPI server is running at ${BASE_URL}.`);
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  }, [file]);
+  const colorClass = severityColors[threat.severity] || 'text-gray-400 bg-gray-600/30 border-gray-500';
 
   return (
-    <div className="space-y-6">
-      <form onSubmit={handleScan} className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 items-center">
-        <label className="block w-full sm:w-auto">
-          <input
-            type="file"
-            onChange={handleFileChange}
-            required
-            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-          />
-        </label>
-
-        <button
-          type="submit"
-          disabled={loading || !file}
-          className="flex-shrink-0 flex items-center justify-center space-x-2 px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition duration-150 disabled:opacity-50"
-        >
-          <FileText className="w-5 h-5" />
-          <span>Scan File</span>
-        </button>
-      </form>
-
-      {loading && <LoadingSpinner message={`Uploading and scanning file: ${file?.name || '...'}`} />}
-      {error && <ErrorMessage message={error} />}
-      {result && (
-        <ResultCard
-          title={`File Scan Results: ${result.filename}`}
-          summary={result.overall_summary}
-          status={result.overall_summary.split(':')[0]}
-          details={result.details}
-          Icon={FileText}
-          colorClass="bg-green-600"
-        />
-      )}
+    <div className="flex items-center justify-between p-3 border-b border-gray-700 last:border-b-0">
+      <div className="flex-1">
+        <p className="font-semibold text-white">{threat.type}</p>
+        <p className="text-xs text-gray-500">Source: {threat.source}</p>
+      </div>
+      <span className={`px-2 py-0.5 text-xs font-medium rounded-full border ${colorClass}`}>
+        {threat.severity}
+      </span>
+      <span className="ml-4 text-sm text-gray-500">{threat.time}</span>
     </div>
   );
 };
 
-const AiQuery = () => {
-  const [query, setQuery] = useState('');
-  const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+const Sidebar = ({ currentPage, setPage, isMobileMenuOpen, setIsMobileMenuOpen }) => {
+  const navItems = [
+    { id: 'overview', label: 'Overview', icon: BarChart },
+    { id: 'threats', label: 'Threats Log', icon: AlertTriangle },
+    { id: 'settings', label: 'Settings', icon: Settings },
+  ];
 
-  const handleQuery = useCallback(async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setResult(null);
-    setError(null);
-
-    try {
-      const response = await fetch(`${BASE_URL}/ai-query`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      setResult(data);
-    } catch (e) {
-      setError(`Failed to connect to backend: ${e.message}. Ensure the FastAPI server is running at ${BASE_URL}.`);
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  }, [query]);
-
-  const formatAiResponse = (text, sources) => {
+  const NavLink = ({ id, label, icon: Icon }) => {
+    const isActive = currentPage === id;
+    const activeClass = isActive ? 'bg-indigo-700 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-700 hover:text-white';
     return (
-      <div className="space-y-4">
-        <div className="p-4 bg-blue-50 border-l-4 border-blue-500 rounded-r-lg">
-          <h4 className="text-lg font-semibold text-blue-800 mb-2">AI Analysis</h4>
-          <p className="whitespace-pre-wrap text-gray-700">{text}</p>
-        </div>
-
-        {sources && sources.length > 0 && (
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <h4 className="text-md font-semibold text-gray-700 mb-2">Sources Referenced (Gemini Search Grounding)</h4>
-            <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
-              {sources.map((source, index) => (
-                <li key={index} className="truncate">
-                  <a
-                    href={source.uri}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-indigo-600 hover:text-indigo-800 hover:underline"
-                    title={source.uri}
-                  >
-                    {source.title || source.uri}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
+      <a
+        href="#"
+        onClick={() => {
+          setPage(id);
+          setIsMobileMenuOpen(false); // Close menu on selection
+        }}
+        className={`flex items-center p-3 rounded-xl transition duration-200 ${activeClass}`}
+      >
+        <Icon className="w-5 h-5 mr-3" />
+        <span className="font-medium">{label}</span>
+      </a>
     );
   };
 
   return (
-    <div className="space-y-6">
-      <form onSubmit={handleQuery} className="flex flex-col space-y-3">
-        <textarea
-          placeholder="Ask a cybersecurity question (e.g., 'What is the latest vulnerability in the VMWare product line?')"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          required
-          rows="3"
-          className="p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 resize-y"
-        />
-        <button
-          type="submit"
-          disabled={loading || !query.trim()}
-          className="flex items-center justify-center space-x-2 px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition duration-150 disabled:opacity-50 self-start sm:self-auto"
-        >
-          <Search className="w-5 h-5" />
-          <span>Get Threat Intelligence</span>
-        </button>
-      </form>
-
-      {loading && <LoadingSpinner message="Querying Gemini for real-time threat intelligence..." />}
-      {error && <ErrorMessage message={error} />}
-      {result && formatAiResponse(result.ai_response, result.sources)}
-    </div>
-  );
-};
-
-const EmailChecker = () => {
-  const [email, setEmail] = useState('');
-  const [result, setResult] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  const handleCheck = useCallback(async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setResult(null);
-    setError(null);
-
-    try {
-      const response = await fetch(`${BASE_URL}/check-email`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      setResult(data);
-    } catch (e) {
-      setError(`Failed to connect to backend: ${e.message}. Ensure the FastAPI server is running at ${BASE_URL}.`);
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  }, [email]);
-
-  // Special display for breach list
-  const getBreachListDisplay = (breachDetails) => {
-    // Note: breachDetails structure is nested under 'details' and 'breach_check'
-    const breaches = breachDetails?.breach_check?.breach_list;
-    if (!breaches || breaches.length === 0) return null;
-
-    return (
-      <div className="mt-4 p-4 bg-red-100 border border-red-300 rounded-lg">
-        <h4 className="font-semibold text-red-800 mb-2 flex items-center space-x-2">
-          <AlertTriangle className="w-5 h-5" />
-          <span>{breaches.length} Breach{breaches.length > 1 ? 'es' : ''} Found:</span>
-        </h4>
-        <ul className="list-disc list-inside space-y-1 text-sm text-red-700">
-          {breaches.map((b, index) => (
-            <li key={index}>
-              <span className="font-medium">{b.name}</span> ({b.date}) - Data Exposed: {b.data}
-            </li>
+    <>
+      {/* Desktop Sidebar */}
+      <div className="hidden lg:flex flex-col w-64 bg-gray-900 border-r border-gray-700 p-4">
+        <div className="flex items-center mb-10 p-2">
+          <Shield className="w-8 h-8 text-indigo-400 mr-3" />
+          <h1 className="text-2xl font-bold text-white tracking-wide">CyberShield</h1>
+        </div>
+        <nav className="space-y-2">
+          {navItems.map(item => (
+            <NavLink key={item.id} {...item} />
           ))}
-        </ul>
+        </nav>
       </div>
-    );
-  };
 
-  return (
-    <div className="space-y-6">
-      <form onSubmit={handleCheck} className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
-        <input
-          type="email"
-          placeholder="Enter email address to check for breaches (e.g., test@example.com)"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          className="flex-grow p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150"
-        />
+      {/* Mobile Menu Button */}
+      <div className="lg:hidden p-4 bg-gray-900 border-b border-gray-700 flex justify-between items-center">
+        <div className="flex items-center">
+            <Shield className="w-6 h-6 text-indigo-400 mr-2" />
+            <h1 className="text-xl font-bold text-white">CyberShield</h1>
+        </div>
         <button
-          type="submit"
-          disabled={loading || !email.trim()}
-          className="flex-shrink-0 flex items-center justify-center space-x-2 px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition duration-150 disabled:opacity-50"
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="p-2 rounded-full text-white bg-gray-700 hover:bg-gray-600 transition"
+          aria-label="Toggle menu"
         >
-          <Mail className="w-5 h-5" />
-          <span>Check Email</span>
+          {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
-      </form>
+      </div>
 
-      {loading && <LoadingSpinner message="Checking breach databases..." />}
-      {error && <ErrorMessage message={error} />}
-      {result && (
-        <ResultCard
-          title={`Email Check Results for ${result.email}`}
-          summary={result.overall_summary}
-          status={result.overall_summary.split(':')[0]}
-          details={result.details}
-          Icon={Mail}
-          colorClass="bg-red-600"
-        >
-          {getBreachListDisplay(result.details)}
-        </ResultCard>
+      {/* Mobile Menu Overlay */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden bg-gray-900/95 p-6 backdrop-blur-sm">
+          <div className="flex justify-end mb-8">
+            <button
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="p-2 rounded-full text-white bg-gray-700 hover:bg-gray-600 transition"
+              aria-label="Close menu"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+          <nav className="space-y-4">
+            {navItems.map(item => (
+              <NavLink key={item.id} {...item} />
+            ))}
+          </nav>
+        </div>
       )}
-    </div>
+    </>
   );
 };
 
+// --- Page Views ---
 
-// --- MAIN APP COMPONENT ---
+const OverviewPage = () => (
+  <div className="p-4 sm:p-8">
+    <h2 className="text-3xl font-extrabold text-white mb-6">Dashboard Overview</h2>
 
-const App = () => {
-  const [activeTab, setActiveTab] = useState('url'); // 'url', 'file', 'ai', 'email'
+    {/* Metrics Grid */}
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <MetricCard
+        title="Total Threats Detected"
+        value={dashboardData.totalThreats.toLocaleString()}
+        icon={Activity}
+        colorClass="text-yellow-400"
+      />
+      <MetricCard
+        title="Attacks Blocked"
+        value={dashboardData.blockedAttacks.toLocaleString()}
+        icon={Shield}
+        colorClass="text-green-400"
+      />
+      <MetricCard
+        title="High Risk Alerts"
+        value={dashboardData.highRiskAlerts}
+        icon={AlertTriangle}
+        colorClass="text-red-500"
+      />
+      <MetricCard
+        title="Network Status"
+        value={dashboardData.networkStatus}
+        icon={Cloud}
+        colorClass="text-indigo-400"
+      />
+    </div>
 
-  const tabContent = {
-    'url': { component: <UrlScanner />, icon: Link, title: 'URL Scanner' },
-    'file': { component: <FileScanner />, icon: FileText, title: 'File Scanner' },
-    'ai': { component: <AiQuery />, icon: Search, title: 'Threat Intelligence AI' },
-    'email': { component: <EmailChecker />, icon: Mail, title: 'Email Breach Checker' },
+    {/* Recent Activity and Graphs */}
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+      {/* Recent Threats Log */}
+      <div className="lg:col-span-2 bg-gray-800 p-6 rounded-xl shadow-xl border border-gray-700">
+        <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
+            <AlertTriangle className="w-5 h-5 mr-2 text-red-500" />
+            Recent Threat Activity
+        </h3>
+        <div className="divide-y divide-gray-700 max-h-96 overflow-y-auto">
+          {dashboardData.recentThreats.map(threat => (
+            <ThreatItem key={threat.id} threat={threat} />
+          ))}
+           <div className="p-3 text-center text-gray-500">
+              (More entries would be loaded here...)
+           </div>
+        </div>
+      </div>
+
+      {/* System Health Status */}
+      <div className="bg-gray-800 p-6 rounded-xl shadow-xl border border-gray-700 flex flex-col justify-between">
+        <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
+            <Zap className="w-5 h-5 mr-2 text-indigo-400" />
+            System Health
+        </h3>
+        <div className="space-y-4 text-gray-300">
+            <div className="flex justify-between items-center border-b border-gray-700 pb-2">
+                <span>CPU Usage:</span>
+                <span className="text-green-400 font-medium">18%</span>
+            </div>
+            <div className="flex justify-between items-center border-b border-gray-700 pb-2">
+                <span>Memory Load:</span>
+                <span className="text-yellow-400 font-medium">45%</span>
+            </div>
+            <div className="flex justify-between items-center">
+                <span>Disk I/O:</span>
+                <span className="text-green-400 font-medium">2 MB/s</span>
+            </div>
+        </div>
+        <button className="mt-6 w-full py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition duration-200 shadow-md">
+            Run Full System Scan
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
+const ThreatsLogPage = () => (
+    <div className="p-4 sm:p-8">
+        <h2 className="text-3xl font-extrabold text-white mb-6">Full Threats Log</h2>
+        <div className="bg-gray-800 p-6 rounded-xl shadow-xl border border-gray-700">
+            <p className="text-gray-400">This page would typically feature a table with filtering and sorting capabilities for all historical threat data.</p>
+            <div className="mt-4 p-4 bg-gray-900 rounded-lg text-gray-500">
+                [Placeholder for Data Table Component]
+                <div className="h-64 flex items-center justify-center">
+                    <AlertTriangle className="w-10 h-10 text-red-500 mr-2" />
+                    Detailed Log View Coming Soon...
+                </div>
+            </div>
+        </div>
+    </div>
+);
+
+const SettingsPage = () => (
+    <div className="p-4 sm:p-8">
+        <h2 className="text-3xl font-extrabold text-white mb-6">Security Settings</h2>
+        <div className="bg-gray-800 p-6 rounded-xl shadow-xl border border-gray-700 max-w-2xl">
+            <p className="text-gray-300 mb-4">Manage your firewall rules and security policies here.</p>
+            <div className="space-y-4">
+                <div className="flex justify-between items-center p-3 bg-gray-700/50 rounded-lg">
+                    <span className="text-white">Firewall Active</span>
+                    <input type="checkbox" className="h-5 w-5 rounded form-checkbox text-indigo-600 bg-gray-600 border-gray-500 focus:ring-indigo-500" defaultChecked />
+                </div>
+                <div className="flex justify-between items-center p-3 bg-gray-700/50 rounded-lg">
+                    <span className="text-white">Automatic Updates</span>
+                    <input type="checkbox" className="h-5 w-5 rounded form-checkbox text-indigo-600 bg-gray-600 border-gray-500 focus:ring-indigo-500" />
+                </div>
+                <button className="mt-4 px-6 py-2 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 transition duration-200">
+                    Apply Changes
+                </button>
+            </div>
+        </div>
+    </div>
+);
+
+
+// --- Main App Component ---
+export default function App() {
+  const [currentPage, setCurrentPage] = useState('overview');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const renderPage = () => {
+    switch (currentPage) {
+      case 'overview':
+        return <OverviewPage />;
+      case 'threats':
+        return <ThreatsLogPage />;
+      case 'settings':
+        return <SettingsPage />;
+      default:
+        return <OverviewPage />;
+    }
   };
 
-  const TabButton = ({ id, icon: Icon, title }) => (
-    <button
-      onClick={() => setActiveTab(id)}
-      className={`flex-1 flex items-center justify-center space-x-2 py-3 px-4 rounded-t-xl transition-all duration-200
-        ${activeTab === id
-          ? 'bg-white text-indigo-600 font-bold shadow-t-lg border-b-4 border-indigo-600'
-          : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-indigo-600'
-        }`}
-    >
-      <Icon className="w-5 h-5" />
-      <span className="hidden sm:inline">{title}</span>
-    </button>
-  );
-
   return (
-    <div className="min-h-screen bg-gray-50 font-sans">
-      <header className="p-6 bg-indigo-600 shadow-xl">
-        <div className="max-w-6xl mx-auto flex items-center space-x-3">
-          <Zap className="w-8 h-8 text-white" />
-          <h1 className="text-3xl font-extrabold text-white">CyberShield Dashboard</h1>
-        </div>
-      </header>
+    <div className="min-h-screen flex flex-col lg:flex-row bg-gray-900 font-inter">
 
-      <main className="max-w-6xl mx-auto p-4 sm:p-6">
-        <div className="bg-white rounded-xl shadow-2xl overflow-hidden">
+      {/* Sidebar Navigation (Conditional Rendering for Mobile) */}
+      <Sidebar
+        currentPage={currentPage}
+        setPage={setCurrentPage}
+        isMobileMenuOpen={isMobileMenuOpen}
+        setIsMobileMenuOpen={setIsMobileMenuOpen}
+      />
 
-          {/* Tab Navigation */}
-          <div className="flex border-b border-gray-200 bg-gray-50 p-1">
-            {Object.keys(tabContent).map(key => (
-              <TabButton
-                key={key}
-                id={key}
-                icon={tabContent[key].icon}
-                title={tabContent[key].title}
-              />
-            ))}
-          </div>
-
-          {/* Tab Content */}
-          <div className="p-6 sm:p-8">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6 border-b pb-3">
-              {tabContent[activeTab].title}
-            </h2>
-            {tabContent[activeTab].component}
-          </div>
-
-        </div>
+      {/* Main Content Area */}
+      <main className="flex-1 overflow-y-auto w-full">
+        {renderPage()}
       </main>
 
-      <footer className="max-w-6xl mx-auto p-4 text-center text-sm text-gray-500">
-        Powered by React and FastAPI. Backend URL: {BASE_URL}
-      </footer>
+      {/* Tailwind and Inter Font loading script (for reference, assumes external load in actual environment) */}
+      <script src="https://cdn.tailwindcss.com"></script>
+      <style>
+        {`
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+          .font-inter { font-family: 'Inter', sans-serif; }
+          /* Fix for default checkbox styling in React */
+          input[type="checkbox"] { appearance: none; -webkit-appearance: none; border-width: 1px; border-style: solid; }
+        `}
+      </style>
     </div>
   );
-};
-
-export default App;
+}
